@@ -24,17 +24,18 @@ def unlz77(input_bytes, output_length):
             source[dst_offset + i] = source[src_offset + i]
 
     while dst < output_length:
-        ctl = input_bytes[input_index]
+        b1 = input_bytes[input_index]
         input_index += 1
-        if ctl & 0x80:
-            num = input_bytes[input_index] + (ctl << 8)
+        if b1 & 0x80:
+            b2 = input_bytes[input_index]
             input_index += 1
-            offset = num & 0x7FF
-            count = min(((num >> 10) & 0x1E) + 2, output_length - dst)
+            word = b2 + (b1 << 8)  # word = b1 + b2
+            offset = word & 0x7FF
+            count = min(((word >> 10) & 0x1E) + 2, output_length - dst)
             binary_copy_overlapped(output, dst - offset - 1, dst, count)
             dst += count
         else:
-            count = min(ctl + 1, output_length - dst)
+            count = min(b1 + 1, output_length - dst)
             output[dst:dst + count] = input_bytes[input_index:input_index + count]
             input_index += count
             dst += count

@@ -46,11 +46,11 @@ def lz77(input_bytes):
 
         # length가 짝수이면서 2 이상인 경우에만 압축
         if length >= 2 and length % 2 == 0:
-            num = 0x8000  # 압축 플래그 1
-            num += offset
-            num += (length - 2) << 10
-            output.append(num >> 8)
-            output.append(num & 0xFF)
+            word = 0x8000  # 압축 플래그 1
+            word += offset
+            word += (length - 2) << 10
+            output.append(word >> 8)
+            output.append(word & 0xFF)
             pos += length
         else:
             literals = []
