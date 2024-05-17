@@ -10,7 +10,7 @@ dir_path = os.path.dirname(input_folder)
 base_name = os.path.splitext(os.path.basename(input_folder))[0]
 output_file = os.path.join(dir_path, base_name + '.cmp')
 
-def lz77(input_bytes):
+def lzCompress(input_bytes):
     input_bytes = bytearray(input_bytes)
     input_length = len(input_bytes)
     output = bytearray()
@@ -125,7 +125,7 @@ def write_footer(cmp_file, entries):
     
     # 푸터 압축
     footer_size = len(footer)  # 원래 크기
-    footer = lz77(footer)
+    footer = lzCompress(footer)
 
     # 푸터 암호화
     footer = xor_encrypt(footer, key)
@@ -153,7 +153,7 @@ def compress_and_pack(directory, output_file):
                     original_size = len(original_data)
 
                     # 압축
-                    compressed_data = lz77(original_data)
+                    compressed_data = lzCompress(original_data)
                     compressed_data = struct.pack('<I', original_size) + compressed_data
 
                     # 파일 정보
