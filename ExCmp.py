@@ -12,8 +12,8 @@ def xor_decrypt(data, key):
         decrypted_data.append(decrypted_byte)
     return bytes(decrypted_data)
 
-# unlz77 codebase by GARbro
-def unlz77(input_bytes, output_length):
+# unLz codebase by GARbro
+def unLz(input_bytes, output_length):
     input_bytes = bytearray(input_bytes)
     output = bytearray(output_length)
     dst = 0
@@ -62,7 +62,7 @@ def read_index(file, key=None):
         # 암호화 해제
         index = xor_decrypt(index, key)
     # 압축 해제
-    index = unlz77(index, uncompressed_index_size)
+    index = unLz(index, uncompressed_index_size)
     
     dir = []
     index_pos = 0
@@ -97,7 +97,7 @@ def extract_file(file, dir_entry, base_dir):
     payload = file.read(dir_entry['size'] - 4)
     
     if dir_entry['is_packed']:
-        payload = unlz77(payload, unsize)  # 압축 해제
+        payload = unLz(payload, unsize)  # 압축 해제
     
     output_path = os.path.join(base_dir, dir_entry['name'])
     with open(output_path, 'wb') as output_file:
