@@ -18,9 +18,9 @@ def lzCompress(input_bytes):
     min_length = 2
     max_length = 0x1E + min_length
 
-    def find_longest_match(data, current_pos):
+    def find_match(data, current_pos):
         best_length = 0
-        best_offset = 0
+        best_distance = 0
         start_pos = max(0, current_pos - window_size)
 
         while start_pos < current_pos:
@@ -30,19 +30,19 @@ def lzCompress(input_bytes):
 
             if length > best_length:
                 best_length = length
-                best_offset = current_pos - start_pos - 1
+                best_distance = current_pos - start_pos - 1
 
             start_pos += 1
 
-        return best_offset, best_length
+        return best_distance, best_length
 
     pos = 0
     while pos < input_length:
-        offset, length = find_longest_match(input_bytes, pos)
+        distance, length = find_match(input_bytes, pos)
 
         if length >= min_length and length % 2 == 0:
             num = 0x8000  # 압축 플래그 1
-            num += offset
+            num += distance
             num += (length - min_length) << 10
             output.append(num >> 8)
             output.append(num & 0xFF)
@@ -51,7 +51,7 @@ def lzCompress(input_bytes):
             literals = []
             # 리터럴 길이를 7비트로
             while pos < input_length and len(literals) < 0x7F:
-                offset, length = find_longest_match(input_bytes, pos)
+                distance, length = find_match(input_bytes, pos)
                 if length >= min_length and length % 2 == 0:
                     break
                 literals.append(input_bytes[pos])
@@ -92,7 +92,7 @@ def write_footer(cmp_file, entries):
     for entry in entries:
         name_bytes = entry['name'].encode('utf-16le')
         name_length = len(name_bytes) // 2
-        footer += struct.pack('<I B B 4x', entry['offset'], name_length, entry['is_packed']) + name_bytes
+        footer += struct.pack('<I B B 4x', entry['distance'], name_length, entry['is_packed']) + name_bytes
     # 푸터 완성
     footer += struct.pack('<I', footer_pos)
     footer = pad_data(footer)
@@ -129,8 +129,8 @@ def compress_and_pack(directory, output_file):
 
                     # 파일 정보
                     relative_path = os.path.relpath(file_path, directory)
-                    offset = cmp_file.tell()
-                    entries.append({'name': relative_path.replace('\\', '/'), 'offset': offset, 'is_packed': 1})
+                    distance = cmp_file.tell()
+                    entries.append({'name': relative_path.replace('\\', '/'), 'distance': distance, 'is_packed': 1})
 
                     # 데이터 쓰기
                     cmp_file.write(compressed_data)
