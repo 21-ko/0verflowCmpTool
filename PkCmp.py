@@ -5,7 +5,6 @@ import struct
 from tqdm import tqdm
 
 input_folder = sys.argv[1]
-#output_file = input_folder.with_name(input_folder.stem + '.cmp')
 dir_path = os.path.dirname(input_folder)
 base_name = os.path.splitext(os.path.basename(input_folder))[0]
 output_file = os.path.join(dir_path, base_name + '.cmp')
@@ -15,71 +14,47 @@ def lzCompress(input_bytes):
     input_length = len(input_bytes)
     output = bytearray()
 
-    # 윈도우 크기 및 매칭 길이
     window_size = 0x800
-    max_length = 0x1E + 2
-
-    # 해시 테이블 설정
-    hash_table = {}
-    #hash_mask = 0xFFFF
-
-    def hash_func(data, pos):
-        """간단한 해시 함수"""
-        return (data[pos] << 4) ^ (data[pos + 1] if pos + 1 < len(data) else 0) ^ (data[pos + 2] if pos + 2 < len(data) else 0)
+    min_length = 2
+    max_length = 0x1E + min_length
 
     def find_longest_match(data, current_pos):
-        """해시 테이블을 사용한 최장 매치 검색"""
         best_length = 0
         best_offset = 0
+        start_pos = max(0, current_pos - window_size)
 
-        if current_pos + 2 < len(data):
-            key = hash_func(data, current_pos)
-            if key in hash_table:
-                candidates = hash_table[key]
-                for search_pos in candidates:
-                    if search_pos < current_pos - window_size:
-                        continue
-                    length = 0
-                    while length < max_length and current_pos + length < len(data) and data[search_pos + length] == data[current_pos + length]:
-                        length += 1
-                    if length > best_length:
-                        best_length = length
-                        best_offset = current_pos - search_pos - 1
+        while start_pos < current_pos:
+            length = 0
+            while length < max_length and current_pos + length < len(data) and data[start_pos + length] == data[current_pos + length]:
+                length += 1
+
+            if length > best_length:
+                best_length = length
+                best_offset = current_pos - start_pos - 1
+
+            start_pos += 1
 
         return best_offset, best_length
-
-    def update_hash_table(data, pos):
-        """해시 테이블 갱신 함수"""
-        if pos + 2 < len(data):
-            key = hash_func(data, pos)
-            if key not in hash_table:
-                hash_table[key] = []
-            hash_table[key].append(pos)
-            hash_table[key] = [p for p in hash_table[key] if p >= pos - window_size]
 
     pos = 0
     while pos < input_length:
         offset, length = find_longest_match(input_bytes, pos)
 
-        # 길이가 2 이상이고 짝수여야 압축
-        if length >= 2 and length % 2 == 0:
-            word = 0x8000  # 압축 플래그 1
-            word += offset
-            word += (length - 2) << 10
-            output.append(word >> 8)
-            output.append(word & 0xFF)
-            for i in range(length):
-                update_hash_table(input_bytes, pos + i)
+        if length >= min_length and length % 2 == 0:
+            num = 0x8000  # 압축 플래그 1
+            num += offset
+            num += (length - min_length) << 10
+            output.append(num >> 8)
+            output.append(num & 0xFF)
             pos += length
         else:
             literals = []
-            initial_pos = pos  # 리터럴 시작 위치 추적
+            # 리터럴 길이를 7비트로
             while pos < input_length and len(literals) < 0x7F:
                 offset, length = find_longest_match(input_bytes, pos)
-                if length >= 2 and length % 2 == 0:
+                if length >= min_length and length % 2 == 0:
                     break
                 literals.append(input_bytes[pos])
-                update_hash_table(input_bytes, pos)
                 pos += 1
 
             if literals:
@@ -87,8 +62,7 @@ def lzCompress(input_bytes):
                 output.extend(literals)
             else:
                 output.append(0)
-                output.append(input_bytes[initial_pos])
-                update_hash_table(input_bytes, initial_pos)
+                output.append(input_bytes[pos])
                 pos += 1
 
     return bytes(output)
@@ -141,10 +115,7 @@ def write_footer(cmp_file, entries):
 
 def compress_and_pack(directory, output_file):
     entries = []
-    with open('TEST.EXE', 'rb') as test_exe, open(output_file, 'wb') as cmp_file:
-        cmp_file.write(test_exe.read())
-
-        # 모든 파일 경로를 가져옴
+    with open(output_file, 'wb') as cmp_file:
         file_paths = list(glob.glob(os.path.join(directory, '**'), recursive=True))
         for file_path in tqdm(file_paths, desc="Archiving"):
             if os.path.isfile(file_path):
